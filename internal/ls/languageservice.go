@@ -3,6 +3,7 @@ package ls
 import (
 	"github.com/microsoft/typescript-go/internal/ast"
 	"github.com/microsoft/typescript-go/internal/compiler"
+	"github.com/microsoft/typescript-go/internal/core"
 	"github.com/microsoft/typescript-go/internal/lsp/lsproto"
 )
 
@@ -16,6 +17,10 @@ func NewLanguageService(host Host) *LanguageService {
 		host:       host,
 		converters: NewConverters(host.GetPositionEncoding(), host.GetLineMap),
 	}
+}
+
+func (l *LanguageService) PositionToLineAndCharacter(script Script, position core.TextPos) lsproto.Position {
+	return l.converters.PositionToLineAndCharacter(script, position)
 }
 
 // GetProgram updates the program if the project version has changed.

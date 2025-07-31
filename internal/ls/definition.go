@@ -84,6 +84,35 @@ func (l *LanguageService) ProvideDefinition(ctx context.Context, documentURI lsp
 	return lsproto.LocationOrLocationsOrDefinitionLinksOrNull{}, nil
 }
 
+func (l *LanguageService) ProvideDefinitionAsNodes(ctx context.Context, documentURI lsproto.DocumentUri, position lsproto.Position) ([]*ast.Node, error) {
+	program, file := l.getProgramAndFile(documentURI)
+	node := astnav.GetTouchingPropertyName(file, int(l.converters.LineAndCharacterToPosition(file, position)))
+	if node.Kind == ast.KindSourceFile {
+		return nil, nil
+	}
+
+	checker, done := program.GetTypeCheckerForFile(ctx, file)
+	defer done()
+
+	calledDeclaration := tryGetSignatureDeclaration(checker, node)
+	if calledDeclaration != nil {
+		name := ast.GetNameOfDeclaration(calledDeclaration)
+		if name != nil {
+			return []*ast.Node{name}, nil
+		}
+	}
+
+	if symbol := checker.GetSymbolAtLocation(node); symbol != nil {
+		if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+			if resolved, ok := checker.ResolveAlias(symbol); ok {
+				symbol = resolved
+			}
+		}
+		return symbol.Declarations, nil
+	}
+	return nil, nil
+}
+
 func (l *LanguageService) ProvideTypeDefinition(ctx context.Context, documentURI lsproto.DocumentUri, position lsproto.Position) (lsproto.DefinitionResponse, error) {
 	program, file := l.getProgramAndFile(documentURI)
 	node := astnav.GetTouchingPropertyName(file, int(l.converters.LineAndCharacterToPosition(file, position)))
